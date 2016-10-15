@@ -12,9 +12,9 @@ This is mainly designed for my toy Go AI, in order to store board information. W
 
 - Random set & get 100M times(with `std::vector` operations):
      - Compressed Grid: 3253ms
-    -  Raw array: 3110ms
+     -  Raw array: 3110ms
 
- - Memory Size:
+- Memory usage:
      - Compressed Grid: 520 B
      - Raw Array: 1444 B
 
