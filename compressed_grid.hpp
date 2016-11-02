@@ -18,6 +18,7 @@ namespace compgrid
         struct GridPoint
         {
             char x, y;
+            GridPoint() = default;
             GridPoint(char x, char y): x(x), y(y) {}
             void right()
             {
@@ -71,6 +72,8 @@ namespace compgrid
                 return y == W - 1;
             }
         };
+
+    static_assert(std::is_pod<GridPoint<1,2> >::value, "Grid Point is POD!");
 
     template<typename T, std::size_t W, std::size_t H, std::size_t obj_len_bit, typename UnderLyingType = unsigned long long>
         class CompressedGrid
