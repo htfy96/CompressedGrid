@@ -158,7 +158,7 @@ namespace std
         private:
             using F = compgrid::CompressedGrid<T, W, H, OBJLEN, UT>;
         public:
-            std::size_t operator() (const F& cg)
+            std::size_t operator() (const F& cg) const
             {
                 std::size_t ans = 0;
                 const std::size_t* it= reinterpret_cast<const std::size_t*>(cg.raw());
