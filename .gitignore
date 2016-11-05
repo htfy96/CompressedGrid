@@ -1,4 +1,7 @@
 *.gch
 *.swp
 *.out
+*.log
+/.idea  
 compressed_grid_example
+compressed_grid

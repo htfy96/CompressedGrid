@@ -11,6 +11,8 @@
 #include <functional>
 #include <utility>
 
+#include "popcount.hpp"
+
 namespace compgrid
 {
     // GridPoint, {Black, White, NA}[W][H]
@@ -147,6 +149,26 @@ namespace compgrid
             const unsigned char* raw() const
             {
                 return buf;
+            }
+
+            std::size_t count() const
+            {
+                std::size_t ans = 0;
+                const std::size_t* it= reinterpret_cast<const std::size_t*>(raw());
+                std::size_t count = BUF_LEN / sizeof(std::size_t), remain = BUF_LEN % sizeof(std::size_t);
+
+                for (std::size_t i = 0; i < count; ++i)
+                {
+                    ans += cg_popcount(it[i]);
+                }
+                const unsigned char* tail_ptr = reinterpret_cast<const unsigned char*>(it + count);
+                unsigned char off = 0;
+                for (const unsigned char* tailit = tail_ptr; tailit != tail_ptr + remain; ++tailit)
+                {
+                    ans += cg_popcount(*tailit);
+                    off += CHAR_BIT;
+                }
+                return ans;
             }
         };
 }

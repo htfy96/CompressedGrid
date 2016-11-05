@@ -65,7 +65,7 @@ int main()
     cout << t.size() << " " << t[t.size() - 1] << endl;
 
     cout << "Size of raw array:"
-         << sizeof(a) << " size of CompressedGrid:" << sizeof(cg) << endl;
+        << sizeof(a) << " size of CompressedGrid:" << sizeof(cg) << endl;
 
     memset(a, 0, sizeof(a));
     cg.clear();
@@ -111,6 +111,30 @@ int main()
                 cout << "!!!!!!!!!!!! comparison fails!" << endl;
 
         }
+    }
+
+    cout << "Checking bitset correctness" << endl;
+    cg.clear();
+    memset(a, 0, sizeof(a));
+
+    for (int i=0; i<1000000; ++i)
+    {
+        int x = rand() % 19, y = rand() % 19;
+        int val;
+        do 
+        {
+            val = rand() % 1024;
+        } while(a[x][y] == val);
+
+        a[x][y] = val;
+        cg.set(cg_t::PointType {char(x), char(y)}, val);
+        int cg_count = cg.count();
+        int a_count = 0;
+        for (int i=0 ;i<19; ++i)
+            for (int j=0; j<19; ++j)
+                a_count += cg_popcount(a[i][j]);
+        if (cg_count != a_count)
+            cout << "Count failed! Expected: "<< a_count << " Actual: "<< cg_count << endl;
     }
     cout << "done!" << endl;
 }
