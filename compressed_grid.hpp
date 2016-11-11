@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <functional>
 #include <utility>
+#include <iostream>
 
 #include "popcount.hpp"
 
@@ -94,6 +95,11 @@ namespace compgrid
             using PointType = GridPoint<W, H>;
             private:
             unsigned char buf[BUF_LEN];
+            union U
+            {
+                UnderLyingType u;
+                T v;
+            };
             public:
             CompressedGrid()
             {
@@ -127,8 +133,9 @@ namespace compgrid
             T get(PointType p) const
             {
                 const std::size_t bitIndex = getBitIndex(p);
-                UnderLyingType obj_raw = getRawbits(bitIndex);
-                return reinterpret_cast<T&>(obj_raw);
+                U x;
+                x.u = getRawbits(bitIndex);
+                return x.v;
             }
             void set(PointType p, ObjectType obj)
             {
@@ -139,7 +146,7 @@ namespace compgrid
             }
             void clear()
             {
-                memset(buf, 0, sizeof(buf));
+                std::memset(buf, 0, sizeof(buf));
             }
 
             unsigned char *raw()
@@ -151,14 +158,39 @@ namespace compgrid
                 return buf;
             }
 
+        private:
+            template<typename F1T, typename F2T>
+            void inner_join(const CompressedGrid &other, F1T f1, F2T f2)
+            {
+                UnderLyingType* it1= reinterpret_cast<UnderLyingType*>(raw());
+                const UnderLyingType *it2 = reinterpret_cast<const UnderLyingType*>(other.raw());
+
+                const UnderLyingType count = BUF_LEN / sizeof(std::size_t), remain = BUF_LEN % sizeof(std::size_t);
+                for (UnderLyingType i=0; i<count; ++i)
+                {
+                    f1(it1[i], it2[i]);
+                }
+                unsigned char* tail_ptr1 = reinterpret_cast<unsigned char*>(it1 + count);
+                const unsigned char *tail_ptr2 = reinterpret_cast<const unsigned char*>(it2 + count);
+
+                unsigned char* tailit1 = tail_ptr1;
+                const unsigned char *tailit2 = tail_ptr2;
+                for (;tailit1 != tail_ptr1 + remain; ++tailit1, ++tailit2)
+                {
+                    f2(*tailit1, *tailit2);
+                }
+            }
+        public:
+
             std::size_t count() const
             {
-                std::size_t ans = 0;
-                const std::size_t* it= reinterpret_cast<const std::size_t*>(raw());
-                std::size_t count = BUF_LEN / sizeof(std::size_t), remain = BUF_LEN % sizeof(std::size_t);
+                UnderLyingType ans = 0;
+                const UnderLyingType* it= reinterpret_cast<const UnderLyingType*>(raw());
+                UnderLyingType count = BUF_LEN / sizeof(UnderLyingType), remain = BUF_LEN % sizeof(UnderLyingType);
 
-                for (std::size_t i = 0; i < count; ++i)
+                for (UnderLyingType i = 0; i < count; ++i)
                 {
+                //    std::cout << it[i] << std::endl;
                     ans += cg_popcount(it[i]);
                 }
                 const unsigned char* tail_ptr = reinterpret_cast<const unsigned char*>(it + count);
@@ -170,7 +202,56 @@ namespace compgrid
                 }
                 return ans;
             }
+
+            CompressedGrid operator | (const CompressedGrid &other) const
+            {
+                CompressedGrid a = *this;
+                a |= other;
+                return a;
+            }
+            CompressedGrid &operator |= (const CompressedGrid& other)
+            {
+                if (&other == this) return *this;
+                inner_join(other, [](UnderLyingType &a, UnderLyingType b) {
+                    a |= b;
+                }, [](unsigned char &a, unsigned char b) {
+                    a |= b;
+                });
+                return *this;
+            }
+            CompressedGrid operator & (const CompressedGrid &other) const
+            {
+                CompressedGrid a = *this;
+                a &= other;
+                return a;
+            }
+            CompressedGrid &operator &= (const CompressedGrid& other)
+            {
+                if (&other == this) return *this;
+                inner_join(other, [](UnderLyingType &a, UnderLyingType b) {
+                    a &= b;
+                }, [](unsigned char &a, unsigned char b) {
+                    a &= b;
+                });
+                return *this;
+            }
+            CompressedGrid operator ^ (const CompressedGrid &other) const {
+                CompressedGrid a = *this;
+                a ^= other;
+                return a;
+            }
+            CompressedGrid &operator ^= (const CompressedGrid& other)
+            {
+                if (&other == this) return *this;
+                inner_join(other, [](UnderLyingType &a, UnderLyingType b) {
+                    a ^= b;
+                }, [](unsigned char &a, unsigned char b) {
+                    a ^= b;
+                });
+                return *this;
+            }
         };
+
 }
 
 namespace std
