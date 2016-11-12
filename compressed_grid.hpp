@@ -83,7 +83,6 @@ namespace compgrid
                         // if obj_len_bit == 64(8 bytes), its read may across 9 aligned bytes!
                         "Object too large to be stored (> size of UnderLyingType - 1");
             static_assert(obj_len_bit <= sizeof(T) * CHAR_BIT, "obj_len_bit > actual size of object");
-            static_assert(std::is_pod<T>::value, "T must be POD!");
             public:
             static const std::size_t Width = W, Height = H;
             static const std::size_t BITS_ALL = W * H * obj_len_bit;
