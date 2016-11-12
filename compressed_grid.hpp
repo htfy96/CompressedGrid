@@ -92,16 +92,27 @@ namespace compgrid
             using PointType = GridPoint<W, H>;
             private:
             unsigned char buf[BUF_LEN];
-            union U
-            {
-                UnderLyingType u;
-                T v;
-            };
+
+            template<typename B, typename A>
+            static B noalias_cast(A a) {
+                union N {
+                    A a;
+                    B b;
+                    N(A a):a(a) { }
+                };
+                return N(a).b;
+            }
             public:
             CompressedGrid()
             {
                 clear();
             }
+
+            CompressedGrid(const T& init_val)
+            {
+                fill(init_val);
+            }
+
             static std::size_t getBitIndex(PointType p)
             {
                 return obj_len_bit * (p.x * W + p.y);
@@ -130,9 +141,8 @@ namespace compgrid
             T get(PointType p) const
             {
                 const std::size_t bitIndex = getBitIndex(p);
-                U x;
-                x.u = getRawbits(bitIndex);
-                return x.v;
+                UnderLyingType u = getRawbits(bitIndex);
+                return noalias_cast<T>(u);
             }
             void set(PointType p, ObjectType obj)
             {
@@ -144,6 +154,12 @@ namespace compgrid
             void clear()
             {
                 std::memset(buf, 0, sizeof(buf));
+            }
+
+            void fill(const T& init_val)
+            {
+                for (PointType p {0, 0}; p.x < W; ++p)
+                    set(p, init_val);
             }
 
             unsigned char *raw()

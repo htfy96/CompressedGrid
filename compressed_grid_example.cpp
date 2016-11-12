@@ -3,6 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <cassert>
+#include <list>
 
 
 // Performance:
@@ -26,6 +27,15 @@ int main()
 {
     using namespace std;
     using namespace compgrid;
+    using cg_list_t = CompressedGrid < list<int>::iterator, 10, 10, 48>;
+    std::list<int> l; l.insert(l.end(), 5);
+    cg_list_t cg_list(l.end());
+    auto ed = l.end();
+    cout << reinterpret_cast<const long long&>(ed) << endl;
+    assert(l.end() == cg_list.get( cg_list_t::PointType { 1, 3 } ));
+    cg_list.set(cg_list_t::PointType { 1, 3 }, l.begin());
+    assert(cg_list.get(cg_list_t::PointType {1, 3}) == l.begin());
+
     std::srand(time(0));
     CompressedGrid<int, 19, 19, 21> cg;
     using cg_t = decltype(cg);
