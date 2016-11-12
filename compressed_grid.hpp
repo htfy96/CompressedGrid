@@ -76,8 +76,6 @@ namespace compgrid
             }
         };
 
-    static_assert(std::is_pod<GridPoint<1,2> >::value, "Grid Point is POD!");
-
     template<typename T, std::size_t W, std::size_t H, std::size_t obj_len_bit, typename UnderLyingType = unsigned long long>
         class CompressedGrid
         {
