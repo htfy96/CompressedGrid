@@ -76,22 +76,24 @@ namespace compgrid
             }
         };
 
-    template<typename T, std::size_t W, std::size_t H, std::size_t obj_len_bit, typename UnderLyingType = unsigned long long>
+    template<typename T, std::size_t W, std::size_t H, std::size_t obj_len_bit, typename UnderLyingType_ = unsigned long long>
         class CompressedGrid
         {
-            static_assert(obj_len_bit > 0 && obj_len_bit <= (sizeof(UnderLyingType) - 1) * CHAR_BIT,
+            static_assert(obj_len_bit > 0 && obj_len_bit <= (sizeof(UnderLyingType_) - 1) * CHAR_BIT,
                         // if obj_len_bit == 64(8 bytes), its read may across 9 aligned bytes!
                         "Object too large to be stored (> size of UnderLyingType - 1");
             static_assert(obj_len_bit <= sizeof(T) * CHAR_BIT, "obj_len_bit > actual size of object");
             public:
+            using UnderLyingType = UnderLyingType_;
             static const std::size_t Width = W, Height = H;
             static const std::size_t BITS_ALL = W * H * obj_len_bit;
-            static const std::size_t BUF_LEN = (BITS_ALL + CHAR_BIT - 1) / CHAR_BIT + sizeof(unsigned long long);
+            static const std::size_t BUF_LEN_IN_UNDERLYING_TYPE = BITS_ALL / (sizeof(UnderLyingType) * CHAR_BIT) + 1;
+            static const std::size_t BUF_LEN = BUF_LEN_IN_UNDERLYING_TYPE * sizeof(UnderLyingType);
             static const UnderLyingType MASK = (1ULL << obj_len_bit) - 1;
             using ObjectType = T;
             using PointType = GridPoint<W, H>;
             private:
-            unsigned char buf[BUF_LEN];
+            UnderLyingType buf[BUF_LEN_IN_UNDERLYING_TYPE];
 
             template<typename B, typename A>
             static B noalias_cast(A a) {
@@ -101,6 +103,15 @@ namespace compgrid
                     N(A a):a(a) { }
                 };
                 return N(a).b;
+            }
+
+            const unsigned char *buf_as_puchar() const
+            {
+                return reinterpret_cast<const unsigned char *>(buf);
+            }
+            unsigned char *buf_as_puchar()
+            {
+                return reinterpret_cast<unsigned char *>(buf);
             }
             public:
             CompressedGrid()
@@ -125,7 +136,7 @@ namespace compgrid
             {
                 const std::size_t charOffset = bitIndex / CHAR_BIT;
                 const std::size_t bitOffset = bitIndex % CHAR_BIT;
-                const unsigned char* const char_ptr= buf + charOffset;
+                const unsigned char* const char_ptr= buf_as_puchar() + charOffset;
                 const UnderLyingType *const longlong_ptr = reinterpret_cast<const UnderLyingType* const>(char_ptr);
                 return (*longlong_ptr & (MASK << bitOffset)) >> bitOffset;
             }
@@ -133,7 +144,7 @@ namespace compgrid
             {
                 const std::size_t charOffset = bitIndex / CHAR_BIT;
                 const std::size_t bitOffset = bitIndex % CHAR_BIT;
-                unsigned char* const char_ptr= buf + charOffset;
+                unsigned char* const char_ptr= buf_as_puchar() + charOffset;
                 UnderLyingType *const longlong_ptr = reinterpret_cast<UnderLyingType *const>(char_ptr);
                 *longlong_ptr &= ~(MASK << bitOffset);
                 *longlong_ptr |= (data & MASK) << bitOffset;
@@ -162,11 +173,11 @@ namespace compgrid
                     set(p, init_val);
             }
 
-            unsigned char *raw()
+            UnderLyingType *raw()
             {
                 return buf;
             }
-            const unsigned char* raw() const
+            const UnderLyingType *raw() const
             {
                 return buf;
             }
@@ -175,43 +186,22 @@ namespace compgrid
             template<typename F1T, typename F2T>
             void inner_join(const CompressedGrid &other, F1T f1, F2T f2)
             {
-                UnderLyingType* it1= reinterpret_cast<UnderLyingType*>(raw());
-                const UnderLyingType *it2 = reinterpret_cast<const UnderLyingType*>(other.raw());
+                UnderLyingType* it1= raw();
+                const UnderLyingType *it2 = other.raw();
 
-                const UnderLyingType count = BUF_LEN / sizeof(std::size_t), remain = BUF_LEN % sizeof(std::size_t);
-                for (UnderLyingType i=0; i<count; ++i)
+                for (UnderLyingType i=0; i<BUF_LEN_IN_UNDERLYING_TYPE; ++i)
                 {
                     f1(it1[i], it2[i]);
-                }
-                unsigned char* tail_ptr1 = reinterpret_cast<unsigned char*>(it1 + count);
-                const unsigned char *tail_ptr2 = reinterpret_cast<const unsigned char*>(it2 + count);
-
-                unsigned char* tailit1 = tail_ptr1;
-                const unsigned char *tailit2 = tail_ptr2;
-                for (;tailit1 != tail_ptr1 + remain; ++tailit1, ++tailit2)
-                {
-                    f2(*tailit1, *tailit2);
                 }
             }
         public:
 
             std::size_t count() const
             {
-                UnderLyingType ans = 0;
-                const UnderLyingType* it= reinterpret_cast<const UnderLyingType*>(raw());
-                UnderLyingType count = BUF_LEN / sizeof(UnderLyingType), remain = BUF_LEN % sizeof(UnderLyingType);
-
-                for (UnderLyingType i = 0; i < count; ++i)
+                std::size_t ans = 0;
+                for (std::size_t i = 0; i < BUF_LEN_IN_UNDERLYING_TYPE; ++i)
                 {
-                //    std::cout << it[i] << std::endl;
-                    ans += cg_popcount(it[i]);
-                }
-                const unsigned char* tail_ptr = reinterpret_cast<const unsigned char*>(it + count);
-                unsigned char off = 0;
-                for (const unsigned char* tailit = tail_ptr; tailit != tail_ptr + remain; ++tailit)
-                {
-                    ans += cg_popcount(*tailit);
-                    off += CHAR_BIT;
+                    ans += cg_popcount(buf[i]);
                 }
                 return ans;
             }
@@ -277,20 +267,11 @@ namespace std
             std::size_t operator() (const F& cg) const
             {
                 std::size_t ans = 0;
-                const std::size_t* it= reinterpret_cast<const std::size_t*>(cg.raw());
-                std::size_t count = F::BUF_LEN / sizeof(std::size_t), remain = F::BUF_LEN % sizeof(std::size_t);
 
-                for (std::size_t i = 0; i < count; ++i)
+                for (std::size_t i = 0; i < F::BUF_LEN_IN_UNDERLYING_TYPE; ++i)
                 {
-                    ans ^= it[i];
+                    ans ^= cg.raw()[i];
                 } 
-                const unsigned char* tail_ptr = reinterpret_cast<const unsigned char*>(it + count);
-                unsigned char off = 0;
-                for (const unsigned char* tailit = tail_ptr; tailit != tail_ptr + remain; ++tailit)
-                {
-                    ans ^= *tailit << off;
-                    off += CHAR_BIT;
-                }
                 return ans;
             }
     };
