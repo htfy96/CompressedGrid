@@ -87,7 +87,7 @@ namespace compgrid
             using UnderLyingType = UnderLyingType_;
             static const std::size_t Width = W, Height = H;
             static const std::size_t BITS_ALL = W * H * obj_len_bit;
-            static const std::size_t BUF_LEN_IN_UNDERLYING_TYPE = BITS_ALL / (sizeof(UnderLyingType) * CHAR_BIT) + 1;
+            static const std::size_t BUF_LEN_IN_UNDERLYING_TYPE = BITS_ALL / (sizeof(UnderLyingType) * CHAR_BIT) + 2;
             static const std::size_t BUF_LEN = BUF_LEN_IN_UNDERLYING_TYPE * sizeof(UnderLyingType);
             static const UnderLyingType MASK = (1ULL << obj_len_bit) - 1;
             using ObjectType = T;
