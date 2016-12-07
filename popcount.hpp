@@ -5,9 +5,9 @@
 #ifndef COMPRESSEDGRID_POPCOUNT_HPP_HPP
 #define COMPRESSEDGRID_POPCOUNT_HPP_HPP
 // Workaround for msvc
-#if defined(__MSC_VER)
+#if defined(_MSC_VER)
 #  include <intrin.h>
-#  define cg_popcount __popcntll
+#  define cg_popcount __popcnt64
 #else
 #  define cg_popcount __builtin_popcountll
 #endif
